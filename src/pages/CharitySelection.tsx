@@ -95,12 +95,13 @@ export default function CharitySelection() {
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-          <Heart className="h-8 w-8 text-rose-600" /> Select Your Charity
-        </h1>
-        <p className="text-gray-600 mt-1">
-          Choose the cause you want your subscription fee to support.
-        </p>
+        <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+  <Heart className="h-6 w-6 text-rose-500" />
+  Select Your Charity
+</h2>
+<p className="text-gray-300 text-sm mt-1">
+  Choose the cause you want your subscription fee to support.
+</p>
       </div>
 
       {message && (
