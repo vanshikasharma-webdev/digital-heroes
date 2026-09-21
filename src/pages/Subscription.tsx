@@ -1,16 +1,13 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Check, Shield, AlertCircle, Sparkles } from 'lucide-react';
+import { Check, Shield, AlertCircle, Sparkles, CheckCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export default function Subscription() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // NOTE: Apne Stripe Dashboard se actual Price IDs yahan replace karein
-  const STRIPE_PRICE_IDS = {
-    monthly: 'price_1P_MONTHLY_PRICE_ID_HERE', // e.g. price_1Pxxxx
-    yearly: 'price_1P_YEARLY_PRICE_ID_HERE',   // e.g. price_1Pyyyy
-  };
+  const [success, setSuccess] = useState(false);
+  const navigate = useNavigate();
 
   const handleSubscribe = async (planType: 'monthly' | 'yearly') => {
     try {
@@ -25,39 +22,29 @@ export default function Subscription() {
         return;
       }
 
-      // 2. Select price ID based on plan type
-      const targetPriceId = STRIPE_PRICE_IDS[planType];
+      // 2. Mock payment processing delay (1.5 seconds)
+      await new Promise((resolve) => setTimeout(resolve, 1500));
 
-      // 3. Call deployed Edge Function
-      const { data, error: fnError } = await supabase.functions.invoke(
-        'create-checkout-session',
-        {
-          body: { 
-            priceId: targetPriceId,
-            returnUrl: window.location.origin
-          },
-        }
-      );
+      // 3. Directly update user's profile with active subscription status
+      const { error: dbError } = await supabase
+        .from('profiles')
+        .update({
+          subscription_status: 'active',
+          plan_type: planType,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', session.user.id);
 
-      if (fnError) {
-        let details = fnError.message;
-        try {
-          const body = await fnError.context?.json();
-          if (body?.error) details = body.error;
-        } catch (_) {}
-        throw new Error(details || 'Failed to trigger checkout session.');
+      if (dbError) {
+        throw new Error(dbError.message);
       }
 
-      if (data?.error) {
-        throw new Error(data.error);
-      }
+      setSuccess(true);
 
-      // 4. Redirect user to Stripe Hosted Checkout URL
-      if (data?.url) {
-        window.location.href = data.url;
-      } else {
-        throw new Error('Stripe Checkout URL not returned from server.');
-      }
+      // Redirect to Dashboard after 1.5 seconds
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 1500);
 
     } catch (err: any) {
       console.error('Subscription error:', err);
@@ -69,7 +56,7 @@ export default function Subscription() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      {/* Header with High-Contrast White Text */}
+      {/* Header */}
       <div className="text-center mb-12">
         <h1 className="text-4xl font-extrabold text-white tracking-tight sm:text-5xl drop-shadow-md">
           Choose Your Plan
@@ -79,10 +66,19 @@ export default function Subscription() {
         </p>
       </div>
 
+      {/* Error Message */}
       {error && (
         <div className="max-w-2xl mx-auto mb-8 p-4 bg-rose-950/80 border border-rose-500 text-rose-200 rounded-lg flex items-center gap-2 text-sm">
           <AlertCircle className="h-5 w-5 shrink-0 text-rose-400" />
           <span>{error}</span>
+        </div>
+      )}
+
+      {/* Success Message */}
+      {success && (
+        <div className="max-w-2xl mx-auto mb-8 p-4 bg-emerald-950/90 border border-emerald-500 text-emerald-200 rounded-lg flex items-center gap-2 text-sm">
+          <CheckCircle className="h-5 w-5 shrink-0 text-emerald-400" />
+          <span>Payment Demo Successful! Activating plan and redirecting to Dashboard...</span>
         </div>
       )}
 
@@ -115,10 +111,10 @@ export default function Subscription() {
           </div>
           <button
             onClick={() => handleSubscribe('monthly')}
-            disabled={loading}
+            disabled={loading || success}
             className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl transition-colors disabled:opacity-50"
           >
-            {loading ? 'Opening Checkout...' : 'Activate Monthly Plan'}
+            {loading ? 'Processing Payment...' : 'Activate Monthly Plan'}
           </button>
         </div>
 
@@ -153,10 +149,10 @@ export default function Subscription() {
           </div>
           <button
             onClick={() => handleSubscribe('yearly')}
-            disabled={loading}
+            disabled={loading || success}
             className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl transition-colors disabled:opacity-50"
           >
-            {loading ? 'Opening Checkout...' : 'Activate Yearly Plan'}
+            {loading ? 'Processing Payment...' : 'Activate Yearly Plan'}
           </button>
         </div>
       </div>
